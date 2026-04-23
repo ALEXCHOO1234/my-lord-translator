@@ -7,33 +7,19 @@ import io
 # 1. 앱 설정
 st.set_page_config(page_title="NATHAN's Sweet Talk", page_icon="🧸")
 
-# 디자인 (파스텔 톤)
+# 디자인
 st.markdown("""
     <style>
     .stApp { background-color: #FEFDF5; }
-    h1 {
-        color: #4A90E2 !important; 
-        font-family: 'Arial Rounded MT Bold', sans-serif;
-        text-align: center;
-    }
+    h1 { color: #4A90E2 !important; font-family: 'Arial Rounded MT Bold', sans-serif; text-align: center; }
     .stButton > button {
-        width: 100%;
-        height: 100px !important;
+        width: 100%; height: 100px !important;
         background: radial-gradient(circle at center, #ffffff 0%, #ffffff 15%, #AED6F1 16%, #AED6F1 100%) !important;
-        color: #333 !important;
-        font-size: 22px !important;
-        font-weight: bold !important;
-        border-radius: 50px !important;
-        border: 6px solid #fff !important;
+        color: #333 !important; font-size: 22px !important; font-weight: bold !important;
+        border-radius: 50px !important; border: 6px solid #fff !important;
         box-shadow: 0 8px 0 #85C1E9, 0 12px 15px rgba(0,0,0,0.1) !important;
     }
-    .chat-box { 
-        background-color: white; 
-        padding: 25px; 
-        border-radius: 30px; 
-        border: 5px solid #AED6F1;
-        margin-top: 20px;
-    }
+    .chat-box { background-color: white; padding: 25px; border-radius: 30px; border: 5px solid #AED6F1; margin-top: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -55,8 +41,6 @@ lang_map = {
 }
 target_lang = lang_map[target_lang_name]
 
-st.info("나단! 하늘색 버튼을 누르고 영어로 말해봐!")
-
 # 3. 마이크 입력
 text = speech_to_text(
     language='en',
@@ -67,19 +51,21 @@ text = speech_to_text(
 
 if text:
     if "last_text" not in st.session_state or st.session_state.last_text != text:
-        # 번역 실행
         translated = GoogleTranslator(source='en', target=target_lang).translate(text)
         
-        # 음성 생성 (가장 빠른 메모리 버퍼 방식)
+        # 음성 생성 로직 강화
         tts = gTTS(text=translated, lang=target_lang)
-        audio_buffer = io.BytesIO()
-        tts.write_to_fp(audio_buffer)
+        
+        # 가상의 mp3 파일 생성
+        audio_io = io.BytesIO()
+        tts.write_to_fp(audio_io)
+        audio_io.seek(0)  # 파일의 처음으로 되돌리기
         
         st.session_state.current_chat = {
             "en": text, 
             "trans": translated, 
             "lang": target_lang_name,
-            "audio": audio_buffer.getvalue()
+            "audio": audio_io.read()  # 다시 읽어서 저장
         }
         st.session_state.last_text = text
         st.rerun()
@@ -96,6 +82,5 @@ if st.session_state.current_chat:
         </div>
     """, unsafe_allow_html=True)
     
-    # 무한 로딩을 방지하기 위해 st.audio의 표준 기능을 사용합니다.
-    # autoplay=True를 설정하여 번역 즉시 소리가 나게 합니다.
-    st.audio(chat['audio'], format='audio/mp3', autoplay=True)
+    # MIME 타입을 명시적으로 지정하여 브라우저의 오역 방지
+    st.audio(chat['audio'], format="audio/mpeg")
