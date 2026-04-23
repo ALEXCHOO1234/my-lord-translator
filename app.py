@@ -3,62 +3,75 @@ from streamlit_mic_recorder import speech_to_text
 from deep_translator import GoogleTranslator
 from gtts import gTTS
 import base64
+import io
 
 # 1. 앱 설정
-st.set_page_config(page_title="NATHAN's Talking AI", page_icon="👦")
+st.set_page_config(page_title="NATHAN's Poke-Translator", page_icon="⚡")
 
-# 디자인: 버튼 크기 확대 및 제목 색상 수정
+# 디자인: 포켓몬 도감(Pokedex) 스타일
 st.markdown("""
     <style>
-    .stApp { background-color: #f0f8ff; }
+    /* 전체 배경: 포켓몬 레드 */
+    .stApp { 
+        background-color: #CC0000; 
+        border: 10px solid #3B4CCA; /* 포켓몬 블루 테두리 */
+    }
     
-    /* 제목 디자인 */
+    /* 제목: 포켓몬 폰트 느낌 */
     h1 {
-        color: #1E90FF !important;
-        font-family: 'Arial Rounded MT Bold', sans-serif;
+        color: #FFDE00 !important; /* 포켓몬 옐로우 */
+        font-family: 'Arial Black', sans-serif;
         text-align: center;
-        padding-bottom: 20px;
-    }
-    
-    /* 나단이를 위한 큼직한 버튼 스타일 */
-    div.stButton > button {
-        width: 100%;
-        height: 80px !important;
-        font-size: 24px !important;
-        border-radius: 40px !important;
-        border: 5px solid #FFD700 !important;
-        background-color: #FF6347 !important; /* 토마토 색상 */
-        color: white !important;
-        font-weight: bold !important;
-        box-shadow: 0 8px 15px rgba(0,0,0,0.2);
-        transition: all 0.3s ease;
-    }
-    
-    div.stButton > button:active {
-        transform: translateY(4px);
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        text-shadow: 3px 3px 0px #3B4CCA;
+        -webkit-text-stroke: 1px #3B4CCA;
     }
 
-    /* 결과 박스 */
-    .chat-box { 
-        background-color: white; 
-        padding: 20px; 
-        border-radius: 25px; 
-        border: 4px solid #1E90FF;
+    /* 몬스터볼 스타일 버튼 */
+    .stButton > button {
+        width: 100%;
+        height: 120px !important;
+        background: radial-gradient(circle at center, #ffffff 0%, #ffffff 10%, #ff0000 11%, #ff0000 100%) !important;
+        color: white !important;
+        font-size: 24px !important;
+        font-weight: bold !important;
+        border-radius: 60px !important;
+        border: 8px solid #333 !important;
+        box-shadow: 0 10px 0 #888, 0 15px 20px rgba(0,0,0,0.4) !important;
+        transition: all 0.1s ease !important;
+        text-shadow: 2px 2px 2px #000;
         margin-top: 20px;
     }
+
+    /* 버튼 클릭 시 몬스터볼이 흔들리는 느낌 */
+    .stButton > button:active {
+        box-shadow: 0 2px 0 #333 !important;
+        transform: translateY(8px) rotate(2deg) !important;
+    }
+
+    /* 대화창: 도감 화면 느낌 */
+    .chat-box { 
+        background-color: #DEF3FD; /* 연한 하늘색 화면 */
+        padding: 20px; 
+        border-radius: 15px; 
+        border: 5px solid #333;
+        margin-top: 30px;
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+    }
+
+    /* 사이드바 글자색 */
+    .css-17l2qt2 { color: white !important; }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("👦 NATHAN's Talking AI")
+st.title("⚡ NATHAN'S POKE-TRANS")
 
 if "history" not in st.session_state:
     st.session_state.history = []
 
-# 2. 사이드바 설정
-st.sidebar.header("🌐 Language Setting")
+# 2. 언어 선택 (사이드바)
+st.sidebar.markdown("<h2 style='color:white;'>🌐 Language</h2>", unsafe_allow_html=True)
 target_lang_name = st.sidebar.selectbox(
-    "어느 나라 말로 번역할까요?",
+    "어느 나라 말로 번역할까?",
     ["한국어", "Japanese", "Chinese", "French", "Spanish", "German"]
 )
 
@@ -68,16 +81,17 @@ lang_map = {
 }
 target_lang = lang_map[target_lang_name]
 
-# 3. 마이크 입력 및 음성 처리
-# 오디오 에러 해결을 위한 데이터 변환 함수
+# 3. 마이크 및 음성 재생 함수
 def get_audio_html(audio_bytes):
     b64 = base64.b64encode(audio_bytes).decode()
-    return f'<audio controls autoplay="true" style="width: 100%;"><source src="data:audio/mp3;base64,{b64}" type="audio/mp3"></audio>'
+    return f'<audio controls autoplay style="width: 100%; margin-top: 10px;"><source src="data:audio/mp3;base64,{b64}" type="audio/mp3"></audio>'
+
+st.warning("나단! 몬스터볼 버튼을 누르고 영어로 말해봐!")
 
 text = speech_to_text(
     language='en',
-    start_prompt="🎤 누르고 말하기 (START)",
-    stop_prompt="🛑 다 했어! (STOP)",
+    start_prompt="🔴 POKE-BALL START!",
+    stop_prompt="⚪ GOTCHA! (번역하기)",
     key='nathan_stt'
 )
 
@@ -85,13 +99,10 @@ if text:
     if "last_text" not in st.session_state or st.session_state.last_text != text:
         translated = GoogleTranslator(source='en', target=target_lang).translate(text)
         
-        # 음성 생성
         tts = gTTS(text=translated, lang=target_lang)
-        import io
         audio_buffer = io.BytesIO()
         tts.write_to_fp(audio_buffer)
         
-        # 최신 결과 저장
         st.session_state.history.insert(0, {
             "en": text, 
             "trans": translated, 
@@ -105,13 +116,11 @@ if text:
 for chat in st.session_state.history:
     st.markdown(f"""
         <div class="chat-box">
-            <p style='color: #888; margin: 0;'>나단이가 한 말:</p>
-            <h3 style='color: #333; margin-top: 5px;'>{chat['en']}</h3>
-            <p style='color: #888; margin-top: 15px; margin-bottom: 0;'>AI 친구의 대답 ({chat['lang']}):</p>
-            <h2 style='color: #1E90FF; margin-top: 5px;'>{chat['trans']}</h2>
+            <p style='color: #555; margin: 0; font-weight: bold;'>[나단이의 영어]</p>
+            <h3 style='color: #000; margin-top: 5px;'>"{chat['en']}"</h3>
+            <p style='color: #555; margin-top: 15px; margin-bottom: 0; font-weight: bold;'>[도감 번역 - {chat['lang']}]</p>
+            <h2 style='color: #CC0000; margin-top: 5px;'>{chat['trans']}</h2>
         </div>
     """, unsafe_allow_html=True)
-    
-    # 에러 방지용 HTML5 오디오 태그 직접 삽입
     st.markdown(get_audio_html(chat['audio']), unsafe_allow_html=True)
     st.write("---")
